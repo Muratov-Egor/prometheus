@@ -1,4 +1,6 @@
 import {defineConfig, devices} from '@playwright/test';
+// @ts-ignore
+import os from 'os';
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
@@ -15,10 +17,12 @@ export default defineConfig({
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
+  // eslint-disable-next-line no-undef
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: 1,
   /* Opt out of parallel tests on CI. */
+  // eslint-disable-next-line no-undef
   workers: process.env.CI ? 3 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
@@ -28,12 +32,20 @@ export default defineConfig({
         detail: false,
         outputFolder: "allure-results",
         suiteTitle: false,
+        environmentInfo: {
+          OS: os.platform(),
+          Architecture: os.arch(),
+          // eslint-disable-next-line no-undef
+          NodeVersion: process.version,
+        },
       },
+
     ],
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
+    // eslint-disable-next-line no-undef
     baseURL: process.env.URL ? process.env.URL : 'https://aviasales.ru',
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
