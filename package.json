@@ -1,0 +1,31 @@
+{
+  "name": "prometheus",
+  "version": "0.1",
+  "main": "index.js",
+  "repository": "https://github.com/Muratov-Egor/prometheus.git",
+  "author": "egormuratov <egor_muratov@hotmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "test": "npx playwright test",
+    "ui-test": "npx playwright test --ui",
+    "report": "allure generate allure-results -o allure-report --clean && allure serve allure-results",
+    "report:clean": "rm -rf allure-results allure-report test-results",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@playwright/test": "^1.47.2",
+    "@types/node": "^22.7.4",
+    "@typescript-eslint/eslint-plugin": "^8.7.0",
+    "@typescript-eslint/parser": "^8.7.0",
+    "allure-commandline": "^2.30.0",
+    "allure-playwright": "^3.0.3",
+    "date-fns": "^4.1.0",
+    "eslint": "^9.11.1",
+    "typescript": "^5.6.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.11.1",
+    "globals": "^15.9.0",
+    "typescript-eslint": "^8.7.0"
+  }
+}
