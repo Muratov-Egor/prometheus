@@ -1,7 +1,7 @@
 import * as allure from "allure-js-commons";
 import {expect, Page} from "@playwright/test";
 
-export class BaseSteps {
+export class BaseStepsPage {
   constructor(private readonly page: Page) {
   }
 
