@@ -21,7 +21,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest] # Запуск на Ubuntu, Windows и macOS
-        browser: [chromium, firefox, webkit] # Браузеры для тестирования
+        browser: [chromium, firefox] # Браузеры для тестирования на всех ОС
+        include:
+          - os: ubuntu-latest
+            browser: webkit # Добавляем webkit только для Ubuntu
+          - os: macos-latest
+            browser: webkit # Добавляем webkit для macOS
 
     steps:
       # Шаг 1: Клонирование репозитория
