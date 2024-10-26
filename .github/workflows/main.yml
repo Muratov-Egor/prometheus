@@ -1,111 +1,81 @@
 name: Run Playwright Tests
 
-# Определение триггеров для запуска workflow
 on:
   push:
     branches:
-      - master 
+      - master  # Запуск на каждом пуше в ветку master
     paths-ignore:
-      - '**.md' # Игнорирование изменений в .md файлах
+      - '**.md'  # Игнорировать изменения в .md файлах
   pull_request:
-    branches: master 
+    branches: master
     paths-ignore:
-      - '**.md'
+      - '**.md'  # Игнорировать изменения в .md файлах
 
 jobs:
   test:
-    timeout-minutes: 20 # Максимальное время выполнения job
-    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10  # Максимальное время выполнения джоба
+    runs-on: ${{ matrix.os }}  # Выбор ОС из матрицы
 
-    # Определение матрицы для запуска тестов на разных ОС и браузерах
     strategy:
-      fail-fast: false # Отключаем прерывание всех jobs при неудаче одной
       matrix:
-        os: [ubuntu-latest, macos-latest] # Запуск только на Ubuntu и macOS
-        browser: [chromium, firefox] # Браузеры для тестирования
-        include:
-          - os: ubuntu-latest
-            browser: webkit # WebKit только для Ubuntu
-          - os: macos-latest
-            browser: webkit # WebKit только для macOS
+        os: [ubuntu-latest, macos-latest]  # Запускаем только на Ubuntu и macOS
+        browser: [chromium, firefox, webkit]  # Тестируем на трёх браузерах
 
     steps:
-      # Шаг 1: Клонирование репозитория
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4  # Шаг для клонирования репозитория
 
-      # Шаг 2: Настройка Node.js для использования LTS-версии
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4  # Устанавливаем Node.js
         with:
-          node-version: lts/*
+          node-version: lts/*  # Используем версию с долгосрочной поддержкой
 
-      # Шаг 3: Установка системных зависимостей Playwright для запуска браузеров на Linux
       - name: Install Playwright dependencies
-        if: runner.os == 'Linux' # Выполняется только на Linux
-        run: npx playwright install-deps
+        run: yarn install  # Установка зависимостей проекта
 
-      # Шаг 4: Кэширование браузеров Playwright для ускорения загрузки
       - name: Cache Playwright browsers
-        uses: actions/cache@v4 # Используем action для кэширования
+        uses: actions/cache@v4  # Кешируем браузеры для ускорения повторных запусков
         with:
-          path: ~/.cache/ms-playwright # Папка с кэшируемыми браузерами Playwright
-          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('**/package-lock.json') }} # Уникальный ключ для кэша
-          restore-keys: |
-            ${{ runner.os }}-playwright-${{ matrix.browser }}- # Ключ для восстановления кэша
+          path: ~/.cache/ms-playwright  # Путь к кешу Playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}  # Ключ кеша, включающий ОС и браузер
 
-      # Шаг 5: Установка зависимостей проекта без загрузки браузеров
-      - name: Install dependencies without downloading browsers
-        env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1 # Переменная окружения для пропуска загрузки браузеров
-        run: yarn install # Устанавливаем зависимости проекта
-
-      # Шаг 6: Установка только нужного браузера Playwright
       - name: Install specific Playwright Browser
         run: |
-          # Проверяем браузер, указанный в матрице, и устанавливаем только его
+          # Проверка и установка конкретного браузера из матрицы
           if [ "${{ matrix.browser }}" == "chromium" ]; then
-            npx playwright install chromium
+            npx playwright install chromium;
           elif [ "${{ matrix.browser }}" == "firefox" ]; then
-            npx playwright install firefox
+            npx playwright install firefox;
           elif [ "${{ matrix.browser }}" == "webkit" ]; then
-            npx playwright install webkit
+            npx playwright install webkit;
           fi
-        shell: bash # Указываем bash для совместимости синтаксиса
 
-      # Шаг 7: Запуск тестов Playwright для указанного браузера
       - name: Run Playwright tests
-        run: |
-          yarn playwright test --project=${{ matrix.browser }} --reporter=list # Запуск тестов с выводом детализированного лога
+        run: yarn playwright test --project=${{ matrix.browser }} --reporter=list  # Запуск тестов с детализацией логов
 
-      # Шаг 8: Генерация Allure Report
       - name: Generate Allure Report
-        if: always() # Выполняется независимо от результата тестов
+        # Создание папки для объединённых отчётов
         run: |
-          mkdir -p combined-allure-report # Создание папки для объединенных отчетов
+          mkdir -p combined-allure-report
           if [ -d "allure-results" ] && [ "$(ls -A allure-results)" ]; then
-            cp -r allure-results/* combined-allure-report/
-            echo "Allure reports copied successfully."
+            cp -r allure-results/* combined-allure-report/  # Копирование всех результатов в общую папку
           else
-            echo "Warning: Allure results not found or empty. Skipping report generation."
+            echo "No allure-results found" && exit 0  # Пропуск следующих шагов, если отчёты не найдены
           fi
 
-      # Шаг 9: Загрузка объединенного артефакта Allure Report
       - name: Upload Allure Report Artifact
-        if: always() # Выполняется независимо от результата предыдущих шагов
-        uses: actions/upload-artifact@v4 # Обновлено на v4 для поддержки Node.js 20
+        # Загружаем Allure отчет как артефакт для дальнейшего использования в деплое
+        uses: actions/upload-artifact@v4
         with:
-          name: combined-allure-report # Уникальное имя для объединенного артефакта
-          path: combined-allure-report/ # Путь к папке с отчетами
+          name: combined-allure-report
+          path: combined-allure-report/
 
   deploy:
-    needs: test # Зависимость от завершения всех тестов
-    runs-on: ubuntu-latest
-    if: always() # Выполняется даже при ошибках в тестах
-    permissions:
-      pages: write # Права на запись для публикации на GitHub Pages
-      id-token: write # Необходим для аутентификации на GitHub Pages
+    needs: test  # Запускается после завершения тестового джоба
+    runs-on: ubuntu-latest  # Запуск деплоя на Ubuntu
+
     steps:
-      # Публикация объединенного отчета на GitHub Pages
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v2 # Обновлено до v2 для поддержки Node.js 20
+        # Используем обновлённую версию actions/deploy-pages@v2
+        uses: actions/deploy-pages@v2
         with:
-          path: combined-allure-report # Путь к папке для публикации
+          token: ${{ secrets.GITHUB_TOKEN }}  # Токен для доступа к GitHub Pages
+          artifact_name: "combined-allure-report"  # Имя артефакта для деплоя
