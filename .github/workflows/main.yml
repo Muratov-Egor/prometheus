@@ -5,7 +5,7 @@ on:
     branches:
       - master 
     paths-ignore:
-    - '**.md' 
+      - '**.md' 
   pull_request:
     branches: master 
     paths-ignore:
@@ -38,15 +38,12 @@ jobs:
 
       - name: Run Playwright tests
         run: |
-          if [ "${{ matrix.browser }}" = "webkit" ]; then
-            yarn playwright test --project=safari;
-          else
-            yarn playwright test --project=${{ matrix.browser }};
-          fi
+          yarn playwright test --project=${{ matrix.browser }} --reporter=list
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Allure Report
         if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ matrix.os }}-${{ matrix.browser }}
-          path: playwright-report/
+          name: allure-report-${{ matrix.os }}-${{ matrix.browser }}
+          path: allure-results/
           retention-days: 1
