@@ -21,10 +21,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest] # Запуск на Ubuntu, Windows и macOS
-        browser: [chromium, firefox] # Браузеры для тестирования
-        include:
-          - os: macos-latest
-            browser: webkit # Добавление Safari (webkit) для macOS
+        browser: [chromium, firefox, webkit] # Браузеры для тестирования
 
     steps:
       # Шаг 1: Клонирование репозитория
@@ -37,12 +34,12 @@ jobs:
 
       # Шаг 3: Кэширование браузеров Playwright для ускорения скачивания
       - name: Cache Playwright browsers
-        uses: actions/cache@v3
+        uses: actions/cache@v4 # Обновлено до v4 для поддержки Node.js 20
         with:
           path: ~/.cache/ms-playwright # Кэшируемая папка с браузерами Playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }} # Уникальный ключ для кэша
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('**/package-lock.json') }} # Уникальный ключ для кэша
           restore-keys: |
-            ${{ runner.os }}-playwright- # Ключ для восстановления кэша, если точный ключ не найден
+            ${{ runner.os }}-playwright-${{ matrix.browser }}- # Убираем запятые из ключа
 
       # Шаг 4: Установка зависимостей без загрузки браузеров Playwright
       - name: Install dependencies without downloading browsers
@@ -80,6 +77,7 @@ jobs:
         if: always() # Выполняется независимо от результата предыдущих шагов
         uses: actions/upload-artifact@v4 # Обновлено на v4 для поддержки Node.js 20
         with:
+          name: allure-report-${{ matrix.os }}-${{ matrix.browser }} # Уникальное имя артефакта для предотвращения конфликтов
           path: allure-report # Путь к сгенерированному отчету Allure
 
   # Публикация Allure отчета на GitHub Pages
