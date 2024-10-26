@@ -40,7 +40,7 @@ jobs:
 
       # Шаг 3: Установка системных зависимостей Playwright для запуска браузеров
       - name: Install Playwright dependencies
-        if: runner.os == 'Linux' # Выполняется только на Linux, т.к. Windows и macOS не нуждаются в этих зависимостях
+        if: runner.os == 'Linux' # Выполняется только на Linux, так как Windows и macOS не нуждаются в этих зависимостях
         run: npx playwright install-deps
 
       # Шаг 4: Кэширование браузеров Playwright для ускорения скачивания
@@ -76,20 +76,20 @@ jobs:
         run: |
           yarn playwright test --project=${{ matrix.browser }} --reporter=list # Запуск тестов с выводом детализированного лога
 
-      # Шаг 8: Генерация отчета Allure
+      # Шаг 8: Генерация отчета Allure и объединение всех отчетов в одну директорию
       - name: Generate Allure Report
         if: always() # Выполняется независимо от результата предыдущих шагов
         run: |
-          # Используем yarn для генерации отчета Allure и сохранения его в allure-report
-          yarn run allure generate allure-results --clean -o allure-report
+          mkdir -p combined-allure-report # Создаем директорию для объединения всех отчетов
+          cp -r allure-report/* combined-allure-report/ # Копируем текущий отчет в общую директорию
 
-      # Шаг 9: Загрузка отчета Allure как артефакта для публикации на GitHub Pages
+      # Шаг 9: Загрузка объединенного артефакта Allure Report
       - name: Upload Allure Report Artifact
         if: always() # Выполняется независимо от результата предыдущих шагов
         uses: actions/upload-artifact@v4 # Обновлено на v4 для поддержки Node.js 20
         with:
-          name: allure-report-${{ matrix.os }}-${{ matrix.browser }} # Уникальное имя артефакта для предотвращения конфликтов
-          path: allure-report # Путь к сгенерированному отчету Allure
+          name: combined-allure-report # Уникальное имя для объединенного артефакта
+          path: combined-allure-report/ # Путь к объединенной директории с отчетами
 
   # Публикация Allure отчета на GitHub Pages
   deploy:
@@ -100,5 +100,8 @@ jobs:
       pages: write # Права на запись для публикации на GitHub Pages
       id-token: write
     steps:
+      # Публикация объединенного отчета на GitHub Pages
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1 # Публикует отчет на GitHub Pages
+        uses: actions/deploy-pages@v2 # Обновлено до v2 для поддержки Node.js 20
+        with:
+          artifact-name: combined-allure-report # Используем объединенный артефакт
