@@ -3,79 +3,94 @@ name: Run Playwright Tests
 on:
   push:
     branches:
-      - master  # Запуск на каждом пуше в ветку master
-    paths-ignore:
-      - '**.md'  # Игнорировать изменения в .md файлах
-  pull_request:
-    branches: master
-    paths-ignore:
-      - '**.md'  # Игнорировать изменения в .md файлах
+      - master
 
 jobs:
   test:
-    timeout-minutes: 10  # Максимальное время выполнения джоба
-    runs-on: ${{ matrix.os }}  # Выбор ОС из матрицы
-
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false # Продолжаем выполнение других джоб даже при падении одной из них
       matrix:
-        os: [ubuntu-latest, macos-latest]  # Запускаем только на Ubuntu и macOS
-        browser: [chromium, firefox, webkit]  # Тестируем на трёх браузерах
-
+        os: [ubuntu-latest, macos-latest] # Убрали Windows
+        browser: [chromium, firefox, webkit]
     steps:
-      - uses: actions/checkout@v4  # Шаг для клонирования репозитория
+      # Шаг проверки репозитория
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4  # Устанавливаем Node.js
+      # Установка Node.js версии
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: lts/*  # Используем версию с долгосрочной поддержкой
+          node-version: '16'
+          cache: 'yarn'
 
+      # Установка зависимостей Playwright без загрузки браузеров
       - name: Install Playwright dependencies
-        run: yarn install  # Установка зависимостей проекта
+        run: |
+          yarn install --frozen-lockfile
 
+      # Кэширование браузеров Playwright
       - name: Cache Playwright browsers
-        uses: actions/cache@v4  # Кешируем браузеры для ускорения повторных запусков
+        uses: actions/cache@v4
         with:
-          path: ~/.cache/ms-playwright  # Путь к кешу Playwright
-          key: ${{ runner.os }}-playwright-${{ matrix.browser }}  # Ключ кеша, включающий ОС и браузер
+          path: |
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-
 
+      # Установка недостающих библиотек для WebKit на Ubuntu
+      - name: Install missing dependencies for WebKit on Ubuntu
+        if: matrix.browser == 'webkit' && runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwoff1 libvpx6 libevent-2.1-7 libopus0 \
+            libgstreamer-plugins-base1.0-0 libgstreamer1.0-0 libgstreamer-plugins-good1.0-0 \
+            libharfbuzz-icu0 libhyphen0 libgudev-1.0-0 libflite1
+
+      # Установка конкретного браузера, указанного в матрице
       - name: Install specific Playwright Browser
         run: |
-          # Проверка и установка конкретного браузера из матрицы
           if [ "${{ matrix.browser }}" == "chromium" ]; then
-            npx playwright install chromium;
+            npx playwright install chromium
           elif [ "${{ matrix.browser }}" == "firefox" ]; then
-            npx playwright install firefox;
+            npx playwright install firefox
           elif [ "${{ matrix.browser }}" == "webkit" ]; then
-            npx playwright install webkit;
+            npx playwright install webkit
           fi
 
+      # Запуск тестов Playwright
       - name: Run Playwright tests
-        run: yarn playwright test --project=${{ matrix.browser }} --reporter=list  # Запуск тестов с детализацией логов
+        run: yarn playwright test --project=${{ matrix.browser }} --reporter=list # Запуск тестов с выводом детализированного лога
 
+      # Генерация отчета Allure
       - name: Generate Allure Report
-        # Создание папки для объединённых отчётов
         run: |
-          mkdir -p combined-allure-report
+          mkdir -p combined-allure-report # Создание папки для объединенных отчетов
           if [ -d "allure-results" ] && [ "$(ls -A allure-results)" ]; then
-            cp -r allure-results/* combined-allure-report/  # Копирование всех результатов в общую папку
+            cp -r allure-results/* combined-allure-report/ # Копирование отчетов в общую папку
           else
-            echo "No allure-results found" && exit 0  # Пропуск следующих шагов, если отчёты не найдены
+            echo "No Allure results found" && exit 0 # Пропуск следующих шагов, если отчеты не найдены
           fi
 
+      # Загрузка артефакта отчета Allure
       - name: Upload Allure Report Artifact
-        # Загружаем Allure отчет как артефакт для дальнейшего использования в деплое
+        if: always() # Выполняем независимо от успешности предыдущих шагов
         uses: actions/upload-artifact@v4
         with:
-          name: combined-allure-report
+          name: allure-report-${{ matrix.os }}-${{ matrix.browser }}
           path: combined-allure-report/
 
+  # Деплой отчета на GitHub Pages
   deploy:
-    needs: test  # Запускается после завершения тестового джоба
-    runs-on: ubuntu-latest  # Запуск деплоя на Ubuntu
-
+    runs-on: ubuntu-latest
+    needs: test
     steps:
       - name: Deploy to GitHub Pages
-        # Используем обновлённую версию actions/deploy-pages@v2
         uses: actions/deploy-pages@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}  # Токен для доступа к GitHub Pages
-          artifact_name: "combined-allure-report"  # Имя артефакта для деплоя
+          token: ${{ secrets.GITHUB_TOKEN }}
+          timeout: 600000 # Увеличиваем тайм-аут для загрузки
+          error_count: 10
+          reporting_interval: 5000
+          artifact_name: github-pages
+          preview: false
