@@ -81,7 +81,7 @@ jobs:
         if: always() # Выполняется независимо от результата тестов
         run: |
           mkdir -p combined-allure-report # Создание папки для объединенных отчетов
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
+          if [ "$RUNNER_OS" == "Windows" ]; then
             # Используем PowerShell на Windows
             pwsh -command "
               if (Test-Path 'allure-results' -and (Get-ChildItem 'allure-results')) {
