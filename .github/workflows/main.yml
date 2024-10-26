@@ -72,11 +72,15 @@ jobs:
         # Загружаем Allure отчеты как артефакт
 
   deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-        # Деплой отчета на GitHub Pages
+      needs: test # Зависимость от завершения всех тестов
+      runs-on: ubuntu-latest
+      if: always() # Выполняется даже при ошибках в тестах
+      permissions:
+        pages: write # Права на запись для публикации на GitHub Pages
+        id-token: write # Необходим для аутентификации на GitHub Pages
+      steps:
+        # Публикация объединенного отчета на GitHub Pages
+        - name: Deploy to GitHub Pages
+          uses: actions/deploy-pages@v2 # Обновлено до v2 для поддержки Node.js 20
+          with:
+            path: combined-allure-report # Путь к папке для публикации
