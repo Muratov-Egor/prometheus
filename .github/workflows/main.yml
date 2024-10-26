@@ -77,7 +77,7 @@ jobs:
 
       # Шаг 8: Публикация Allure отчета на GitHub Pages
       - name: Publish Allure Report to Pages
-        uses: mikepenz/allure-report-action@v2
+        uses: mikepenz/allure-report-action@v1 # Используем корректную версию v1
         if: always() # Выполняется независимо от результата предыдущих шагов
         with:
           report_paths: allure-report # Путь к сгенерированному отчету Allure для публикации на GitHub Pages
