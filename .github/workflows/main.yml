@@ -32,7 +32,12 @@ jobs:
         with:
           node-version: lts/*
 
-      # Шаг 3: Кэширование браузеров Playwright для ускорения скачивания
+      # Шаг 3: Установка системных зависимостей Playwright для запуска браузеров
+      - name: Install Playwright dependencies
+        if: runner.os == 'Linux' # Выполняется только на Linux, т.к. Windows и macOS не нуждаются в этих зависимостях
+        run: npx playwright install-deps
+
+      # Шаг 4: Кэширование браузеров Playwright для ускорения скачивания
       - name: Cache Playwright browsers
         uses: actions/cache@v4 # Обновлено до v4 для поддержки Node.js 20
         with:
@@ -41,13 +46,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-${{ matrix.browser }}- # Убираем запятые из ключа
 
-      # Шаг 4: Установка зависимостей без загрузки браузеров Playwright
+      # Шаг 5: Установка зависимостей без загрузки браузеров Playwright
       - name: Install dependencies without downloading browsers
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1 # Переменная окружения для пропуска загрузки браузеров
         run: yarn install # Устанавливаем зависимости проекта
 
-      # Шаг 5: Установка только нужного браузера
+      # Шаг 6: Установка только нужного браузера
       - name: Install specific Playwright Browser
         run: |
           # Проверяем браузер, указанный в матрице, и устанавливаем только его
@@ -60,19 +65,19 @@ jobs:
           fi
         shell: bash # Указываем bash, чтобы избежать проблем с синтаксисом на Windows
 
-      # Шаг 6: Запуск тестов Playwright для указанного браузера
+      # Шаг 7: Запуск тестов Playwright для указанного браузера
       - name: Run Playwright tests
         run: |
           yarn playwright test --project=${{ matrix.browser }} --reporter=list # Запуск тестов с выводом детализированного лога
 
-      # Шаг 7: Генерация отчета Allure
+      # Шаг 8: Генерация отчета Allure
       - name: Generate Allure Report
         if: always() # Выполняется независимо от результата предыдущих шагов
         run: |
           # Используем yarn для генерации отчета Allure и сохранения его в allure-report
           yarn run allure generate allure-results --clean -o allure-report
 
-      # Шаг 8: Загрузка отчета Allure как артефакта для публикации на GitHub Pages
+      # Шаг 9: Загрузка отчета Allure как артефакта для публикации на GitHub Pages
       - name: Upload Allure Report Artifact
         if: always() # Выполняется независимо от результата предыдущих шагов
         uses: actions/upload-artifact@v4 # Обновлено на v4 для поддержки Node.js 20
