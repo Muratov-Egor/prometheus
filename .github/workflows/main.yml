@@ -1,28 +1,30 @@
 name: Run Playwright Tests
 
+# Определение триггеров для запуска workflow
 on:
   push:
     branches:
       - master 
     paths-ignore:
-      - '**.md' 
+      - '**.md' # Игнорирование изменений в markdown-файлах
   pull_request:
     branches: master 
     paths-ignore:
-      - '**.md' 
+      - '**.md' # Игнорирование изменений в markdown-файлах
 
 jobs:
   test:
-    timeout-minutes: 10
+    timeout-minutes: 10 # Ограничение времени выполнения job
     runs-on: ${{ matrix.os }}
 
+    # Определение матрицы для запуска тестов на разных операционных системах и браузерах
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        browser: [chromium, firefox]
+        os: [ubuntu-latest, windows-latest, macos-latest] # Запуск на Ubuntu, Windows и macOS
+        browser: [chromium, firefox] # Браузеры для тестирования
         include:
           - os: macos-latest
-            browser: webkit 
+            browser: webkit # Добавление Safari (webkit) для macOS
 
     steps:
       # Шаг 1: Клонирование репозитория
@@ -36,12 +38,13 @@ jobs:
       # Шаг 3: Установка зависимостей без загрузки браузеров Playwright
       - name: Install dependencies without downloading browsers
         env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1 # Пропускаем загрузку браузеров
-        run: yarn install
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1 # Переменная окружения для пропуска загрузки браузеров
+        run: yarn install # Устанавливаем зависимости проекта
 
       # Шаг 4: Установка только нужного браузера
       - name: Install specific Playwright Browser
         run: |
+          # Проверяем браузер, указанный в матрице, и устанавливаем только его
           if [ "${{ matrix.browser }}" == "chromium" ]; then
             npx playwright install chromium
           elif [ "${{ matrix.browser }}" == "firefox" ]; then
@@ -54,11 +57,11 @@ jobs:
       # Шаг 5: Запуск тестов Playwright для указанного браузера
       - name: Run Playwright tests
         run: |
-          yarn playwright test --project=${{ matrix.browser }} --reporter=list
+          yarn playwright test --project=${{ matrix.browser }} --reporter=list # Запуск тестов с выводом детализированного лога
 
       # Шаг 6: Загрузка отчетов Allure как артефактов для дальнейшего анализа
       - name: Upload Allure Report
-        if: ${{ !cancelled() }} # Выполняется только если job не был отменен
+        if: always() # Выполняется независимо от результата предыдущих шагов
         uses: actions/upload-artifact@v4
         with:
           name: allure-report-${{ matrix.os }}-${{ matrix.browser }} # Уникальное имя для каждого артефакта
