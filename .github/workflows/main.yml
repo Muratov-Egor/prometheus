@@ -33,10 +33,10 @@ jobs:
       # Шаг 1: Клонирование репозитория
       - uses: actions/checkout@v4
 
-      # Шаг 2: Настройка Node.js для использования LTS-версии
+      # Шаг 2: Настройка Node.js для использования версии 18
       - uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: '18' # Обновляем Node.js до версии 18 для совместимости с Playwright
 
       # Шаг 3: Установка системных зависимостей Playwright для запуска браузеров на Linux
       - name: Install Playwright dependencies
@@ -48,9 +48,10 @@ jobs:
         uses: actions/cache@v4 # Используем action для кэширования
         with:
           path: ~/.cache/ms-playwright # Папка с кэшируемыми браузерами Playwright
-          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('**/package-lock.json') }} # Уникальный ключ для кэша
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('**/yarn.lock') }} # Уникальный ключ для кэша
           restore-keys: |
             ${{ runner.os }}-playwright-${{ matrix.browser }}- # Ключ для восстановления кэша
+
       # Шаг 5: Установка зависимостей проекта без загрузки браузеров
       - name: Install dependencies without downloading browsers
         env:
@@ -74,6 +75,7 @@ jobs:
       - name: Run Playwright tests
         run: |
           yarn playwright test --project=${{ matrix.browser }} --reporter=list # Запуск тестов с выводом детализированного лога
+
       # Шаг 8: Генерация Allure Report
       - name: Generate Allure Report
         if: always() # Выполняется независимо от результата тестов
@@ -85,6 +87,7 @@ jobs:
           else
             echo "Warning: Allure results not found or empty. Skipping report generation."
           fi
+
       # Шаг 9: Загрузка объединенного артефакта Allure Report
       - name: Upload Allure Report Artifact
         if: always() # Выполняется независимо от результата предыдущих шагов
