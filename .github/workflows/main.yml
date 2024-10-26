@@ -1,16 +1,15 @@
 name: Run Playwright Tests
 
-# Определение триггеров для запуска workflow
 on:
   push:
     branches:
       - master 
     paths-ignore:
-      - '**.md' # Игнорирование изменений в markdown-файлах
+      - '**.md' 
   pull_request:
     branches: master 
     paths-ignore:
-      - '**.md' # Игнорирование изменений в markdown-файлах
+      - '**.md' 
 
 jobs:
   test:
@@ -27,24 +26,19 @@ jobs:
             browser: webkit # Добавление Safari (webkit) для macOS
 
     steps:
-      # Шаг 1: Клонирование репозитория
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4 # Клонирование репозитория
 
-      # Шаг 2: Настройка Node.js для использования LTS-версии
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4 # Настройка Node.js
         with:
           node-version: lts/*
 
-      # Шаг 3: Установка зависимостей без загрузки браузеров Playwright
       - name: Install dependencies without downloading browsers
         env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1 # Переменная окружения для пропуска загрузки браузеров
-        run: yarn install # Устанавливаем зависимости проекта
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+        run: yarn install
 
-      # Шаг 4: Установка только нужного браузера
       - name: Install specific Playwright Browser
         run: |
-          # Проверяем браузер, указанный в матрице, и устанавливаем только его
           if [ "${{ matrix.browser }}" == "chromium" ]; then
             npx playwright install chromium
           elif [ "${{ matrix.browser }}" == "firefox" ]; then
@@ -52,34 +46,31 @@ jobs:
           elif [ "${{ matrix.browser }}" == "webkit" ]; then
             npx playwright install webkit
           fi
-        shell: bash # Указываем bash, чтобы избежать проблем с синтаксисом на Windows
+        shell: bash
 
-      # Шаг 5: Запуск тестов Playwright для указанного браузера
       - name: Run Playwright tests
         run: |
-          yarn playwright test --project=${{ matrix.browser }} --reporter=list # Запуск тестов с выводом детализированного лога
+          yarn playwright test --project=${{ matrix.browser }} --reporter=list
 
-      # Шаг 6: Генерация отчета Allure
       - name: Generate Allure Report
-        if: always() # Выполняется независимо от результата предыдущих шагов
+        if: always()
         run: |
-          # Используем yarn для генерации отчета Allure и сохранения его в allure-report
           yarn run allure generate allure-results --clean -o allure-report
 
-      # Шаг 7: Загрузка отчета Allure как артефакта
-      - name: Upload Allure Report
-        if: always() # Выполняется независимо от результата предыдущих шагов
-        uses: actions/upload-artifact@v4
+      # Загружаем Allure отчет как артефакт для публикации на GitHub Pages
+      - name: Upload Allure Report Artifact
+        if: always()
+        uses: actions/upload-pages-artifact@v1
         with:
-          name: allure-report-${{ matrix.os }}-${{ matrix.browser }} # Уникальное имя для каждого артефакта
-          path: allure-report/ # Путь к папке с отчетами
-          retention-days: 1 # Хранение артефактов в течение 1 дня
+          path: allure-report # Путь к сгенерированному отчету Allure для публикации
 
-      # Шаг 8: Публикация Allure отчета на GitHub Pages
-      - name: Publish Allure Report to Pages
-        uses: mikepenz/allure-report-action@v1 # Используем корректную версию v1
-        if: always() # Выполняется независимо от результата предыдущих шагов
-        with:
-          report_paths: allure-report # Путь к сгенерированному отчету Allure для публикации на GitHub Pages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Токен для доступа и публикации на GitHub Pages
+  # Публикация Allure отчета на GitHub Pages
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v1
