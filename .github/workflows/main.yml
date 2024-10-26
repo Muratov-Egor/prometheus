@@ -6,11 +6,11 @@ on:
     branches:
       - master 
     paths-ignore:
-      - '**.md' # Игнорирование изменений в markdown-файлах
+      - '**.md'
   pull_request:
     branches: master 
     paths-ignore:
-      - '**.md' # Игнорирование изменений в markdown-файлах
+      - '**.md'
 
 jobs:
   test:
@@ -76,7 +76,7 @@ jobs:
         run: |
           yarn playwright test --project=${{ matrix.browser }} --reporter=list # Запуск тестов с выводом детализированного лога
 
-      # Шаг 8: Генерация Allure отчета с учетом операционной системы
+      # Шаг 8: Генерация Allure Report с учетом ОС
       - name: Generate Allure Report
         if: always() # Выполняется независимо от результата тестов
         run: |
@@ -107,7 +107,6 @@ jobs:
           name: combined-allure-report # Уникальное имя для объединенного артефакта
           path: combined-allure-report/ # Путь к папке с отчетами
 
-  # Публикация Allure отчета на GitHub Pages
   deploy:
     needs: test # Зависимость от завершения всех тестов
     runs-on: ubuntu-latest
