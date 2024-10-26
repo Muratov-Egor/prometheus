@@ -82,15 +82,17 @@ jobs:
         run: |
           mkdir -p combined-allure-report # Создание папки для объединенных отчетов
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            # Если раннер Windows, используем PowerShell для проверки и копирования отчетов
-            if (Test-Path "allure-results" -and (Get-ChildItem "allure-results")) {
-              Copy-Item -Path allure-results\* -Destination combined-allure-report\ -Recurse
-              Write-Output "Allure reports copied successfully."
-            } else {
-              Write-Output "Warning: Allure results not found or empty. Skipping report generation."
-            }
+            # Используем PowerShell на Windows
+            pwsh -command "
+              if (Test-Path 'allure-results' -and (Get-ChildItem 'allure-results')) {
+                Copy-Item -Path 'allure-results/*' -Destination 'combined-allure-report/' -Recurse;
+                Write-Output 'Allure reports copied successfully.'
+              } else {
+                Write-Output 'Warning: Allure results not found or empty. Skipping report generation.'
+              }
+            "
           else
-            # Если раннер Linux или macOS, используем bash для проверки и копирования отчетов
+            # Используем bash на Linux/macOS
             if [ -d "allure-results" ] && [ "$(ls -A allure-results)" ]; then
               cp -r allure-results/* combined-allure-report/
               echo "Allure reports copied successfully."
