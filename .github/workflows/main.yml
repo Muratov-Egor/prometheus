@@ -6,7 +6,7 @@ on:
     branches:
       - master 
     paths-ignore:
-      - '**.md'
+      - '**.md' # Игнорирование изменений в .md файлах
   pull_request:
     branches: master 
     paths-ignore:
@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false # Отключаем прерывание всех jobs при неудаче одной
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest] # Запуск на Ubuntu, Windows и macOS
+        os: [ubuntu-latest, macos-latest] # Запуск только на Ubuntu и macOS
         browser: [chromium, firefox] # Браузеры для тестирования
         include:
           - os: ubuntu-latest
@@ -76,29 +76,16 @@ jobs:
         run: |
           yarn playwright test --project=${{ matrix.browser }} --reporter=list # Запуск тестов с выводом детализированного лога
 
-      # Шаг 8: Генерация Allure Report с учетом ОС
+      # Шаг 8: Генерация Allure Report
       - name: Generate Allure Report
         if: always() # Выполняется независимо от результата тестов
         run: |
           mkdir -p combined-allure-report # Создание папки для объединенных отчетов
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            # Используем PowerShell на Windows
-            pwsh -command "
-              if (Test-Path 'allure-results' -and (Get-ChildItem 'allure-results')) {
-                Copy-Item -Path 'allure-results/*' -Destination 'combined-allure-report/' -Recurse;
-                Write-Output 'Allure reports copied successfully.'
-              } else {
-                Write-Output 'Warning: Allure results not found or empty. Skipping report generation.'
-              }
-            "
+          if [ -d "allure-results" ] && [ "$(ls -A allure-results)" ]; then
+            cp -r allure-results/* combined-allure-report/
+            echo "Allure reports copied successfully."
           else
-            # Используем bash на Linux/macOS
-            if [ -d "allure-results" ] && [ "$(ls -A allure-results)" ]; then
-              cp -r allure-results/* combined-allure-report/
-              echo "Allure reports copied successfully."
-            else
-              echo "Warning: Allure results not found or empty. Skipping report generation."
-            fi
+            echo "Warning: Allure results not found or empty. Skipping report generation."
           fi
 
       # Шаг 9: Загрузка объединенного артефакта Allure Report
