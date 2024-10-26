@@ -1,30 +1,28 @@
 name: Run Playwright Tests
 
-# Определение триггеров для запуска workflow
 on:
   push:
     branches:
       - master 
     paths-ignore:
-      - '**.md' # Игнорирование изменений в markdown-файлах
+      - '**.md' 
   pull_request:
     branches: master 
     paths-ignore:
-      - '**.md' # Игнорирование изменений в markdown-файлах
+      - '**.md' 
 
 jobs:
   test:
     timeout-minutes: 10
     runs-on: ${{ matrix.os }}
 
-    # Определение матрицы для запуска тестов на разных операционных системах и браузерах
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest] # Запуск на Ubuntu, Windows и macOS
-        browser: [chromium, firefox] # Браузеры для тестирования
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        browser: [chromium, firefox]
         include:
           - os: macos-latest
-            browser: webkit # Добавление Safari (webkit) для macOS
+            browser: webkit 
 
     steps:
       # Шаг 1: Клонирование репозитория
@@ -35,23 +33,25 @@ jobs:
         with:
           node-version: lts/*
 
-      # Шаг 3: Установка зависимостей с использованием Yarn
-      - name: Install dependencies
+      # Шаг 3: Установка зависимостей без загрузки браузеров Playwright
+      - name: Install dependencies without downloading browsers
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1 # Пропускаем загрузку браузеров
         run: yarn install
 
-      # Шаг 4: Установка браузеров Playwright
-      # Используем --with-deps на Linux и macOS для установки дополнительных зависимостей
-      - name: Install Playwright Browsers
+      # Шаг 4: Установка только нужного браузера
+      - name: Install specific Playwright Browser
         run: |
-          if [ "${{ runner.os }}" == "Linux" ] || [ "${{ runner.os }}" == "macOS" ]; then
-            npx playwright install --with-deps
-          else
-            npx playwright install
+          if [ "${{ matrix.browser }}" == "chromium" ]; then
+            npx playwright install chromium
+          elif [ "${{ matrix.browser }}" == "firefox" ]; then
+            npx playwright install firefox
+          elif [ "${{ matrix.browser }}" == "webkit" ]; then
+            npx playwright install webkit
           fi
         shell: bash # Указываем bash, чтобы избежать проблем с синтаксисом на Windows
 
       # Шаг 5: Запуск тестов Playwright для указанного браузера
-      # Используем дополнительный вывод результатов (--reporter=list) для упрощения отладки
       - name: Run Playwright tests
         run: |
           yarn playwright test --project=${{ matrix.browser }} --reporter=list
