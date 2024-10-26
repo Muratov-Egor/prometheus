@@ -6,61 +6,62 @@ on:
     branches:
       - master 
     paths-ignore:
-      - '**.md'
+      - '**.md' # Игнорирование изменений в markdown-файлах
   pull_request:
     branches: master 
     paths-ignore:
-      - '**.md'
+      - '**.md' # Игнорирование изменений в markdown-файлах
 
 jobs:
   test:
     timeout-minutes: 20 # Максимальное время выполнения job
     runs-on: ${{ matrix.os }}
 
+    # Определение матрицы для запуска тестов на разных ОС и браузерах
     strategy:
       fail-fast: false # Отключаем прерывание всех jobs при неудаче одной
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        browser: [chromium, firefox]
+        os: [ubuntu-latest, windows-latest, macos-latest] # Запуск на Ubuntu, Windows и macOS
+        browser: [chromium, firefox] # Браузеры для тестирования
         include:
           - os: ubuntu-latest
-            browser: webkit
+            browser: webkit # WebKit только для Ubuntu
           - os: macos-latest
-            browser: webkit
+            browser: webkit # WebKit только для macOS
 
     steps:
       # Шаг 1: Клонирование репозитория
       - uses: actions/checkout@v4
 
-      # Шаг 2: Настройка Node.js на LTS версию
+      # Шаг 2: Настройка Node.js для использования LTS-версии
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
 
-      # Шаг 3: Установка системных зависимостей для Playwright на Linux
+      # Шаг 3: Установка системных зависимостей Playwright для запуска браузеров на Linux
       - name: Install Playwright dependencies
-        if: runner.os == 'Linux' # Устанавливаем только на Linux
+        if: runner.os == 'Linux' # Выполняется только на Linux
         run: npx playwright install-deps
 
-      # Шаг 4: Кэширование браузеров Playwright для ускорения
+      # Шаг 4: Кэширование браузеров Playwright для ускорения загрузки
       - name: Cache Playwright browsers
-        uses: actions/cache@v4 # Используем v4 для поддержки Node.js 20
+        uses: actions/cache@v4 # Используем action для кэширования
         with:
           path: ~/.cache/ms-playwright # Папка с кэшируемыми браузерами Playwright
-          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('**/package-lock.json') }} # Уникальный ключ для кэша
           restore-keys: |
-            ${{ runner.os }}-playwright-${{ matrix.browser }}-
+            ${{ runner.os }}-playwright-${{ matrix.browser }}- # Ключ для восстановления кэша
 
       # Шаг 5: Установка зависимостей проекта без загрузки браузеров
       - name: Install dependencies without downloading browsers
         env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1 # Пропуск загрузки браузеров
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1 # Переменная окружения для пропуска загрузки браузеров
         run: yarn install # Устанавливаем зависимости проекта
 
       # Шаг 6: Установка только нужного браузера Playwright
       - name: Install specific Playwright Browser
         run: |
-          # Установка нужного браузера из матрицы
+          # Проверяем браузер, указанный в матрице, и устанавливаем только его
           if [ "${{ matrix.browser }}" == "chromium" ]; then
             npx playwright install chromium
           elif [ "${{ matrix.browser }}" == "firefox" ]; then
@@ -68,46 +69,55 @@ jobs:
           elif [ "${{ matrix.browser }}" == "webkit" ]; then
             npx playwright install webkit
           fi
-        shell: bash
+        shell: bash # Указываем bash для совместимости синтаксиса
 
-      # Шаг 7: Запуск тестов Playwright с указанным браузером и выводом детализированного лога
+      # Шаг 7: Запуск тестов Playwright для указанного браузера
       - name: Run Playwright tests
         run: |
-          yarn playwright test --project=${{ matrix.browser }} --reporter=list
+          yarn playwright test --project=${{ matrix.browser }} --reporter=list # Запуск тестов с выводом детализированного лога
 
-      # Шаг 8: Генерация Allure отчета с проверкой существования папки allure-results
+      # Шаг 8: Генерация Allure отчета с учетом операционной системы
       - name: Generate Allure Report
         if: always() # Выполняется независимо от результата тестов
         run: |
           mkdir -p combined-allure-report # Создание папки для объединенных отчетов
-          if [ -d "allure-results" ] && [ "$(ls -A allure-results)" ]; then
-            # Если директория allure-results существует и не пуста
-            cp -r allure-results/* combined-allure-report/ # Копируем отчеты в общую папку
-            echo "Allure reports copied successfully."
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            # Если раннер Windows, используем PowerShell для проверки и копирования отчетов
+            if (Test-Path "allure-results" -and (Get-ChildItem "allure-results")) {
+              Copy-Item -Path allure-results\* -Destination combined-allure-report\ -Recurse
+              Write-Output "Allure reports copied successfully."
+            } else {
+              Write-Output "Warning: Allure results not found or empty. Skipping report generation."
+            }
           else
-            # Если директория отсутствует или пуста, выводим предупреждение
-            echo "Warning: Allure results not found or empty. Skipping report generation."
+            # Если раннер Linux или macOS, используем bash для проверки и копирования отчетов
+            if [ -d "allure-results" ] && [ "$(ls -A allure-results)" ]; then
+              cp -r allure-results/* combined-allure-report/
+              echo "Allure reports copied successfully."
+            else
+              echo "Warning: Allure results not found or empty. Skipping report generation."
+            fi
           fi
 
-      # Шаг 9: Загрузка объединенного отчета Allure как артефакта
+      # Шаг 9: Загрузка объединенного артефакта Allure Report
       - name: Upload Allure Report Artifact
-        if: always() # Выполняется всегда
-        uses: actions/upload-artifact@v4 # Используем v4 для поддержки Node.js 20
+        if: always() # Выполняется независимо от результата предыдущих шагов
+        uses: actions/upload-artifact@v4 # Обновлено на v4 для поддержки Node.js 20
         with:
-          name: combined-allure-report # Название артефакта
-          path: combined-allure-report/ # Путь к папке с объединенными отчетами
+          name: combined-allure-report # Уникальное имя для объединенного артефакта
+          path: combined-allure-report/ # Путь к папке с отчетами
 
   # Публикация Allure отчета на GitHub Pages
   deploy:
-    needs: test # Зависимость от выполнения всех jobs в test
+    needs: test # Зависимость от завершения всех тестов
     runs-on: ubuntu-latest
-    if: always() # Выполняется всегда
+    if: always() # Выполняется даже при ошибках в тестах
     permissions:
       pages: write # Права на запись для публикации на GitHub Pages
       id-token: write # Необходим для аутентификации на GitHub Pages
     steps:
-      # Шаг: Публикация объединенного отчета на GitHub Pages
+      # Публикация объединенного отчета на GitHub Pages
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v2 # Обновлено до v2 для поддержки Node.js 20
         with:
-          artifact-name: combined-allure-report # Имя артефакта для публикации
+          path: combined-allure-report # Путь к папке для публикации
